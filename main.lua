@@ -10,6 +10,7 @@ local list = require("lib.list")
 local consts = require("consts")
 
 local generateRoad = require("modules.generate-road")
+local normalMatrix = require("modules.normal-matrix")
 local loadObj = require("modules.load-obj")
 
 -- TODO: Move to consts
@@ -28,15 +29,6 @@ local controllingCamera
 
 local function lerp(a, b, i)
 	return a + i * (b - a)
-end
-
--- Used to transform normals
-local function normalMatrix(modelToWorld)
-	local m = mat4.transpose(mat4.inverse(modelToWorld))
-	return
-		m._00, m._01, m._02,
-		m._10, m._11, m._12,
-		m._20, m._21, m._22
 end
 
 local function hsv2rgb(h, s, v)
@@ -86,6 +78,7 @@ function love.load()
 		lengthSpeed = 10,
 		length = 10000,
 		width = 20,
+		height = 20,
 		maxNewTargetAngularSpeed = 1,
 		baseNewTargetAngularVelocityTimerLength = 12,
 		newTargetAngularVelocityTimerLengthVariationSize = 2,
