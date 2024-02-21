@@ -84,52 +84,94 @@ local function generateRoad(parameters)
 		-- Add to vertices, or at least first slice1
 		local v = lengthTraversed / parameters.width / parameters.textureStretch -- Texture coord v
 		local thisSliceVertices = {} -- 0-based array
-		local numVerticesPerSlice = 8
-		for i = 0, numVerticesPerSlice - 1 do
-			local progress = i / numVerticesPerSlice
-			local angle = progress * tau
+		if parameters.cylindrical then
+			for i = 0, parameters.numVerticesPerSlice - 1 do
+				local progress = i / parameters.numVerticesPerSlice
+				local angle = progress * tau
 
-			local posInSlice = vec3(
-				math.cos(angle) * parameters.width / 2,
-				math.sin(angle) * parameters.height / 2,
-				0
-			)
-			local posInSpace = currentPosition + vec3.rotate(posInSlice, currentOrientation)
+				local posInSlice = vec3(
+					math.cos(angle) * parameters.width / 2,
+					math.sin(angle) * parameters.height / 2,
+					0
+				)
+				local posInSpace = currentPosition + vec3.rotate(posInSlice, currentOrientation)
 
-			local u = progress
+				local u = progress
 
-			local normalInSlice = vec3.normalise(posInSlice)
-			local sliceToSpace = mat4.transform(currentPosition, currentOrientation) -- Could use this to handle position as well
-			local normalInSpace = multiplyMat3WithVec3({normalMatrix(sliceToSpace)}, normalInSlice)
+				local normalInSlice = vec3.normalise(posInSlice)
+				local sliceToSpace = mat4.transform(currentPosition, currentOrientation) -- Could use this to handle position as well
+				local normalInSpace = multiplyMat3WithVec3({normalMatrix(sliceToSpace)}, normalInSlice)
 
-			thisSliceVertices[i] = {
-				posInSpace.x, posInSpace.y, posInSpace.z,
-				u, v,
-				normalInSpace.x, normalInSpace.y, normalInSpace.z
-			}
-		end
-		if previousSliceVertices then
-			for i = 0, numVerticesPerSlice - 1 do
-				-- Form quads bridging slices with matching vertices
-				-- Triangle 1
-				vertices[#vertices + 1] = previousSliceVertices[i]
-				vertices[#vertices + 1] = previousSliceVertices[(i + 1) % numVerticesPerSlice]
-				vertices[#vertices + 1] = thisSliceVertices[i]
-				-- Triangle 2
-				vertices[#vertices + 1] = thisSliceVertices[i]
-				vertices[#vertices + 1] = thisSliceVertices[(i + 1) % numVerticesPerSlice]
-				vertices[#vertices + 1] = previousSliceVertices[(i + 1) % numVerticesPerSlice]
+				thisSliceVertices[i] = {
+					posInSpace.x, posInSpace.y, posInSpace.z,
+					u, v,
+					normalInSpace.x, normalInSpace.y, normalInSpace.z
+				}
 			end
-			-- Handle final pair of triangles specially to avoid weird texture issues with the u coordinate
-			-- We modify the vertices which were added using i + 1
-			local function modify(amountToGoBack)
-				local v = shallowClone(vertices[#vertices - amountToGoBack])
-				v[4] = v[4] + 1
-				vertices[#vertices - amountToGoBack] = v
+			if previousSliceVertices then
+				for i = 0, parameters.numVerticesPerSlice - 1 do
+					-- Form quads bridging slices with matching vertices
+					-- Triangle 1
+					vertices[#vertices + 1] = previousSliceVertices[i]
+					vertices[#vertices + 1] = previousSliceVertices[(i + 1) % parameters.numVerticesPerSlice]
+					vertices[#vertices + 1] = thisSliceVertices[i]
+					-- Triangle 2
+					vertices[#vertices + 1] = thisSliceVertices[i]
+					vertices[#vertices + 1] = thisSliceVertices[(i + 1) % parameters.numVerticesPerSlice]
+					vertices[#vertices + 1] = previousSliceVertices[(i + 1) % parameters.numVerticesPerSlice]
+				end
+				-- Handle final pair of triangles specially to avoid weird texture issues with the u coordinate
+				-- We modify the vertices which were added using i + 1
+				local function modify(amountToGoBack)
+					local v = shallowClone(vertices[#vertices - amountToGoBack])
+					v[4] = v[4] + 1
+					vertices[#vertices - amountToGoBack] = v
+				end
+				modify(4)
+				modify(1)
+				modify(0)
 			end
-			modify(4)
-			modify(1)
-			modify(0)
+		else
+			local function addVertex(posInSliceUnscaled, u)
+				local posInSlice = vec3.clone(posInSliceUnscaled)
+				posInSlice.x = posInSlice.x * parameters.width / 2
+				posInSlice.y = posInSlice.y * parameters.height / 2
+				local posInSpace = currentPosition + vec3.rotate(posInSlice, currentOrientation)
+				thisSliceVertices[
+					-- Get next empty position in 0-based array
+					#thisSliceVertices + (thisSliceVertices[0] and 1 or 0)
+				] = {
+					posInSpace.x, posInSpace.y, posInSpace.z,
+					u, v
+					-- Must think on how to calculate normals here (TODO)
+				}
+			end
+			-- Manually defining u values leads to some stretching... figure out solution
+			-- Don't manually define any of this, probably.
+			-- Top
+			addVertex(vec3(-1, -0.1, 0), 0)
+			addVertex(vec3(-0.9, 0, 0), 0.1)
+			addVertex(vec3(0.9, 0, 0), 0.9)
+			addVertex(vec3(1, -0.1, 0), 0.95)
+			-- Bottom
+			addVertex(vec3(1, -0.2, 0), 0)
+			addVertex(vec3(0.9, -0.3, 0), 0.1)
+			addVertex(vec3(-0.9, -0.3, 0), 0.9)
+			addVertex(vec3(-1, -0.2, 0), 0.95)
+			local finalVertexIndex = #thisSliceVertices + (thisSliceVertices[0] and 1 or 0) - 1
+			if previousSliceVertices then
+				for i = 0, finalVertexIndex do
+					-- Form quads bridging slices with matching vertices
+					-- Triangle 1
+					vertices[#vertices + 1] = previousSliceVertices[i]
+					vertices[#vertices + 1] = previousSliceVertices[(i + 1) % finalVertexIndex]
+					vertices[#vertices + 1] = thisSliceVertices[i]
+					-- Triangle 2
+					vertices[#vertices + 1] = thisSliceVertices[i]
+					vertices[#vertices + 1] = thisSliceVertices[(i + 1) % finalVertexIndex]
+					vertices[#vertices + 1] = previousSliceVertices[(i + 1) % finalVertexIndex]
+				end
+			end
 		end
 		previousSliceVertices = thisSliceVertices
 		-- Change twisting?

@@ -79,10 +79,12 @@ function love.load()
 		length = 10000,
 		width = 20,
 		height = 20,
+		cylindrical = true,
+		numVerticesPerSlice = 20,
 		maxNewTargetAngularSpeed = 1,
 		baseNewTargetAngularVelocityTimerLength = 12,
 		newTargetAngularVelocityTimerLengthVariationSize = 2,
-		angularAcceleration = 0.05,
+		angularAcceleration = 0.01,
 		textureStretch = 4
 	})
 	objects:add({
