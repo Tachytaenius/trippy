@@ -129,8 +129,16 @@ float calculateFogFactor2(float dist, float fogFadeLength) { // More fog the clo
 	return clamp(1 - dist / fogFadeLength, 0.0, 1.0);
 }
 
-vec3 lerpVec3(vec3 a, vec3 b, float i) {
-	return a + (b - a) * i;
+float pingPong(float x, float height) {
+	return height - abs(height - mod(x, 2.0 * height));
+}
+
+float jaggedify(float x, float mul1, float mul2, float height, float add) {
+	return mul1 * x + mul2 * pingPong(x, height) + add;
+}
+
+float bumpify(float x, float a, float b, float c, float d) {
+	return a * x + b * sin(c * d) + d;
 }
 
 vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords) {
@@ -151,17 +159,36 @@ vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords)
 			)
 		).xyz
 	);
-	direction.z /= 6.0;
+	direction.z /= 4.0;
 	direction = normalize(direction);
+	vec3 directionJagged = vec3(
+		jaggedify(direction.x * 10.0, 2.0, 1.5, 1.0, -4.0) / 10.0,
+		jaggedify(direction.y * 10.0, 1.9, 1.6, 1.1, -2.0) / 10.0,
+		jaggedify(direction.z * 10.0, 1.8, 1.7, 1.2, sin(time / 2.5) * 0.25) / 10.0
+	);
+	vec3 directionBumpified = vec3(
+		bumpify(direction.x, 0.1, 0.2, 0.3, 0.4),
+		bumpify(direction.y, -1.0, 1.0, 2.0, 3.0),
+		bumpify(direction.z, 4.0, 3.0, 2.0, 1.0)
+	);
+	vec3 directionMixed = direction + dot(directionJagged, directionBumpified) - sin(time * 0.2) * 0.2 * cross(directionJagged, directionBumpified);
 	float whiteness = max(
 		calculateFogFactor2(distance(direction, vec3(0, 0, -1)), 0.75),
 		calculateFogFactor2(distance(direction, vec3(0, 0, 1)), 1.0)
 	);
-	vec3 baseSkyColour = vec3(
-		simplex3d(direction * 1.0),
-		simplex3d(direction * 2.0 - time * 0.05),
-		simplex3d(direction * 3.0 + time * 0.1)
-	);
-	vec3 skyColour = lerpVec3(baseSkyColour, vec3(1.0), whiteness);
+	vec3 baseSkyColour =
+		vec3(
+			pow(simplex3d(directionMixed * 1.0 - time * 0.025), 2.0),
+			pow(simplex3d(directionMixed * 2.0 - time * 0.05), 2.0),
+			pow(simplex3d(directionMixed * 0.5 + time * 0.1), 2.0)
+		)
+		+
+		1.25 * vec3(
+			pow(simplex3d(direction * 1.0 - time * 0.025), 2.0),
+			pow(simplex3d(direction * 2.0 - time * 0.05), 2.0),
+			pow(simplex3d(direction * 3.0 + time * 0.1), 2.0)
+		)
+	;
+	vec3 skyColour = mix(baseSkyColour, vec3(1.0), whiteness);
 	return vec4(skyColour, 1.0);
 }

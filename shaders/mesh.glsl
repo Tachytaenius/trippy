@@ -130,6 +130,14 @@ vec4 position(mat4 loveTransform, vec4 homogenVertexPosition) {
 
 #endif
 
+float pingPong(float x, float height) {
+	return height - abs(height - mod(x, 2.0 * height));
+}
+
+float jaggedify(float x) {
+	return 2.0 * x + 1.5 * pingPong(x, 1.0) - 4.0;
+}
+
 #ifdef PIXEL
 
 uniform float time;
@@ -142,8 +150,13 @@ vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords)
 	if (drawTrippy) {
 		vec3 textureColour = Texel(baseTexture, textureCoords).rgb;
 		vec3 textureColour2 = Texel(baseTexture, textureCoords / 10.0 + time * 0.125).rgb * 0.25;
+		vec3 positionJagged = vec3(
+			jaggedify(fragmentPosition.x * 1.0) / 1.0,
+			jaggedify(fragmentPosition.y * 1.0) / 1.0,
+			jaggedify(fragmentPosition.z * 1.0) / 1.0
+		);
 		vec3 simplexColour = vec3(
-			simplex3d(fragmentPosition / 50.0),
+			simplex3d(positionJagged / 30.0 + time * 0.5),
 			pow(simplex3d(fragmentPosition / 25.0 + 10030.0 - time * 1/3), 4.0),
 			pow(simplex3d(fragmentPosition / 12.5 - 1000.0 + time * 0.25), 2.0)
 		);
