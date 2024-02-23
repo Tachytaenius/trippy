@@ -141,6 +141,34 @@ float bumpify(float x, float a, float b, float c, float d) {
 	return a * x + b * sin(c * d) + d;
 }
 
+vec3 hsv2rgb(vec3 hsv) {
+	float h = hsv[0];
+	float s = hsv[1];
+	float v = hsv[2];
+	if (s == 0.0) {
+		return vec3(v);
+	}
+	float _h = h / 60.0;
+	int i = int(_h);
+	float f = _h - i;
+	float p = v * (1 - s);
+	float q = v * (1 - f * s);
+	float t = v * (1 - (1 - f) * s);
+	if (i == 0) {
+		return vec3(v, t, p);
+	} else if (i == 1) {
+		return vec3(q, v, p);
+	} else if (i == 2) {
+		return vec3(p, v, t);
+	} else if (i == 3) {
+		return vec3(p, q, v);
+	} else if (i == 4) {
+		return vec3(t, p, v);
+	} else if (i == 5) {
+		return vec3(v, p, q);
+	}
+}
+
 vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords) {
 	// vec3 v = normalize(vec3(textureCoords - 0.5, 1));
 	// vec3 uv = cross(viewQuaternion.xyz, v);
@@ -159,6 +187,7 @@ vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords)
 			)
 		).xyz
 	);
+	vec3 directionOriginal = direction;
 	direction.z /= 4.0;
 	direction = normalize(direction);
 	vec3 directionJagged = vec3(
@@ -188,6 +217,12 @@ vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords)
 			pow(simplex3d(direction * 2.0 - time * 0.05), 2.0),
 			pow(simplex3d(direction * 3.0 + time * 0.1), 2.0)
 		)
+		+
+		(sin(time * 0.5) * 0.5 + 0.5 + 0.25) * hsv2rgb(vec3(
+			mod(simplex3d(directionJagged * 1.0), 1.0) * 360.0,
+			1.0,
+			pow(simplex3d(directionBumpified * 5.0 + 10.0), 1.0)
+		))
 	;
 	vec3 skyColour = mix(baseSkyColour, vec3(1.0), whiteness);
 	return vec4(skyColour, 1.0);

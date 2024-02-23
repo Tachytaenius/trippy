@@ -63,7 +63,7 @@ function love.load()
 	camera = {
 		position = vec3(0, -4, 0),
 		orientation = quat(),
-		verticalFov = math.rad(70),
+		verticalFov = math.rad(90),
 		nearPlaneDistance = 0.001,
 		farPlaneDistance = 1000,
 		speed = 100,
@@ -93,11 +93,11 @@ function love.load()
 		position = vec3(0, 0, 0),
 		orientation = quat()
 	})
-	objects:add({
-		mesh = loadObj("meshes/racer.obj"),
-		position = vec3(0, 0, 0),
-		orientation = quat()
-	})
+	-- objects:add({
+	-- 	mesh = loadObj("meshes/racer.obj"),
+	-- 	position = vec3(0, 0, 0),
+	-- 	orientation = quat()
+	-- })
 
 	currentPathStepIndex = 1
 	currentPathStepTime = 0
@@ -127,8 +127,8 @@ function love.update(dt)
 		local lerpFactor = currentPathStepTime / currentStep.length
 		pathPosition = lerp(currentStep.position, nextStep.position, lerpFactor)
 		pathOrientation = quat.slerp(currentStep.orientation, nextStep.orientation, lerpFactor)
-		objects:get(2).position = pathPosition + vec3.rotate(upVector * 1, pathOrientation)
-		objects:get(2).orientation = pathOrientation
+		-- objects:get(2).position = pathPosition + vec3.rotate(upVector * 1, pathOrientation)
+		-- objects:get(2).orientation = pathOrientation
 
 		currentPathStepTime = currentPathStepTime + dt * 10
 		if currentPathStepTime >= currentStep.length then
