@@ -12,6 +12,7 @@ local consts = require("consts")
 local generateRoad = require("modules.generate-road")
 local normalMatrix = require("modules.normal-matrix")
 local loadObj = require("modules.load-obj")
+local moveVectorToTarget = require("modules.move-vector-to-target")
 
 -- TODO: Move to consts
 local upVector = vec3(0, -1, 0)
@@ -62,7 +63,13 @@ function love.load()
 
 	camera = {
 		position = vec3(0, -4, 0),
+		velocity = vec3(),
+		maxSpeed = 10,
+		acceleration = 100,
 		orientation = quat(),
+		angularVelocity = vec3(),
+		maxAngularSpeed = tau / 4,
+		angularAcceleration = tau / 2,
 		verticalFov = math.rad(90),
 		nearPlaneDistance = 0.001,
 		farPlaneDistance = 1000,
@@ -139,8 +146,9 @@ function love.update(dt)
 		controllingCamera = true
 	end
 
+	local targetVelocity, targetAngularVelocity = vec3(), vec3()
 	if controllingCamera then
-		local speed = love.keyboard.isDown("lshift") and 100 or 10
+		local speed = love.keyboard.isDown("lshift") and 10 or 1
 		local translation = vec3()
 		if love.keyboard.isDown("w") then translation.z = translation.z + speed end
 		if love.keyboard.isDown("s") then translation.z = translation.z - speed end
@@ -148,7 +156,7 @@ function love.update(dt)
 		if love.keyboard.isDown("d") then translation.x = translation.x + speed end
 		if love.keyboard.isDown("q") then translation.y = translation.y + speed end
 		if love.keyboard.isDown("e") then translation.y = translation.y - speed end
-		camera.position = camera.position + vec3.rotate(translation, camera.orientation) * dt
+		targetVelocity = vec3.rotate(translation, camera.orientation) * camera.maxSpeed
 
 		local angularSpeed = tau / 4
 		local rotation = vec3()
@@ -158,11 +166,15 @@ function love.update(dt)
 		if love.keyboard.isDown("k") then rotation.x = rotation.x - angularSpeed end
 		if love.keyboard.isDown("u") then rotation.z = rotation.z - angularSpeed end
 		if love.keyboard.isDown("o") then rotation.z = rotation.z + angularSpeed end
-		camera.orientation = quat.normalise(camera.orientation * quat.fromAxisAngle(rotation * dt))
+		targetAngularVelocity = rotation * camera.maxAngularSpeed
 	else
 		camera.position = pathPosition + vec3.rotate(vec3(0, -2, -2), pathOrientation)
 		camera.orientation = pathOrientation * quat.fromAxisAngle(vec3(-0.25, 0, 0))
 	end
+	camera.velocity = moveVectorToTarget(camera.velocity, targetVelocity, camera.acceleration, dt)
+	camera.position = camera.position + camera.velocity * dt
+	camera.angularVelocity = moveVectorToTarget(camera.angularVelocity, targetAngularVelocity, camera.angularAcceleration, dt)
+	camera.orientation = quat.normalise(camera.orientation * quat.fromAxisAngle(camera.angularVelocity * dt))
 
 	time = time + dt
 end

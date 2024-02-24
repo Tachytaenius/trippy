@@ -6,6 +6,8 @@ local mat4 = mathsies.mat4
 local consts = require("consts")
 
 local normalMatrix = require("modules.normal-matrix")
+local moveVectorToTarget = require("modules.move-vector-to-target")
+local normaliseOrZero = require("modules.normalise-or-zero")
 
 -- TODO: Move to consts
 local forwardVector = vec3(0, 0, 1)
@@ -28,19 +30,6 @@ local function randomInSphere(radius)
 	local r = radius * u ^ 1/3
 
 	return r * vec3.fromAngles(theta, phi)
-end
-
-local function normaliseOrZero(v)
-	local zeroVector = vec3()
-	return v == zeroVector and zeroVector or vec3.normalise(v)
-end
-
-local function moveVectorToTarget(current, target, rate, dt)
-	local currentToTarget = target - current
-	local direction = normaliseOrZero(currentToTarget)
-	local distance = #currentToTarget
-	local newCurrentToTarget = direction * math.max(0, distance - rate * dt)
-	return target - newCurrentToTarget
 end
 
 -- Mathsies does not have mat3 support
