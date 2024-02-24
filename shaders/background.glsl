@@ -109,6 +109,8 @@ float simplex3d_fractal(vec3 m) {
 
 // My code:
 
+const float tau = 6.28318530718;
+
 uniform float time;
 uniform vec4 viewQuaternion;
 uniform mat4 screenToSky;
@@ -200,28 +202,34 @@ vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords)
 		bumpify(direction.y, -1.0, 1.0, 2.0, 3.0),
 		bumpify(direction.z, 4.0, 3.0, 2.0, 1.0)
 	);
-	vec3 directionMixed = direction + dot(directionJagged, directionBumpified) - sin(time * 0.2) * 0.2 * cross(directionJagged, directionBumpified);
+	vec3 directionMixedModulated = direction + dot(directionJagged, directionBumpified) - cos(time * 0.2 + cos(time * 0.2)) * 0.3 * cross(directionJagged, directionBumpified);
+	vec3 directionMixedRipples = direction + dot(directionJagged, directionBumpified) - cos(time * 0.3 + simplex3d(directionOriginal * 1.0 + vec3(0.0, 0.0, time * 0.05)) * tau) * 0.3 * cross(directionJagged, directionBumpified);
+	vec3 directionMixedMixed = mix(directionMixedRipples, directionMixedModulated, sin(time * 0.25) * 0.5 + 0.5);
 	float whiteness = max(
 		calculateFogFactor2(distance(direction, vec3(0, 0, -1)), 0.75),
 		calculateFogFactor2(distance(direction, vec3(0, 0, 1)), 1.0)
 	);
 	vec3 baseSkyColour =
-		vec3(
-			pow(simplex3d(directionMixed * 1.0 - time * 0.025), 2.0),
-			pow(simplex3d(directionMixed * 2.0 - time * 0.05), 2.0),
-			pow(simplex3d(directionMixed * 0.5 + time * 0.1), 2.0)
+		(sin(time * 0.5) * 0.5 + 0.5 + 0.25) * (
+			vec3(
+				pow(simplex3d(directionMixedMixed * 0.5 + 0.0 - time * 0.25), 2.0),
+				pow(simplex3d(directionMixedMixed * 0.5 + 10.0 - time * 0.5), 2.0),
+				pow(simplex3d(directionMixedMixed * 0.5 + 100.0 + time * 0.1), 2.0)
+			)
 		)
 		+
-		1.25 * vec3(
-			pow(simplex3d(direction * 1.0 - time * 0.025), 2.0),
-			pow(simplex3d(direction * 2.0 - time * 0.05), 2.0),
-			pow(simplex3d(direction * 3.0 + time * 0.1), 2.0)
+		(sin(time * 0.3 + tau / 8) * 0.5 + 0.5 + 0.5) * (
+			1.25 * vec3(
+				pow(simplex3d(direction * 1.0 - time * 0.025), 2.0),
+				pow(simplex3d(direction * 2.0 - time * 0.05), 2.0),
+				pow(simplex3d(direction * 3.0 + time * 0.1), 2.0)
+			)
 		)
 		+
-		(sin(time * 0.5) * 0.5 + 0.5 + 0.25) * hsv2rgb(vec3(
-			mod(simplex3d(directionJagged * 1.0), 1.0) * 360.0,
+		hsv2rgb(vec3(
+			mod(simplex3d(directionBumpified * 1.0) + time * 0.1, 1.0) * 360.0,
 			1.0,
-			pow(simplex3d(directionBumpified * 5.0 + 10.0), 1.0)
+			pow(simplex3d(directionJagged * 5.0 + 10.0), 1.0)
 		))
 	;
 	vec3 skyColour = mix(baseSkyColour, vec3(1.0), whiteness);
