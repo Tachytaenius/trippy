@@ -138,12 +138,23 @@ float jaggedify(float x) {
 	return 2.0 * x + 1.5 * pingPong(x, 1.0) - 4.0;
 }
 
+float calculateFogFactor2(float dist, float fogFadeLength) { // More fog the closer you are
+	if (fogFadeLength == 0.0) { // Avoid dividing by zero
+		return 1.0; // Immediate fog
+	}
+	return clamp(1 - dist / fogFadeLength, 0.0, 1.0);
+}
+
 #ifdef PIXEL
 
 uniform float time;
 uniform bool drawTrippy;
 uniform sampler2D baseTexture;
 uniform vec3 baseTextureColour;
+uniform sampler2D gridIndicatorTexture;
+uniform float gridIndicatorTextureCellCount;
+uniform float gridCellEdgeBlendFactor;
+uniform vec3 gridBaseColour;
 
 vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords) {
 	vec3 surfaceColour;
@@ -160,7 +171,42 @@ vec4 effect(vec4 colour, sampler2D image, vec2 textureCoords, vec2 windowCoords)
 			pow(simplex3d(fragmentPosition / 25.0 + 10030.0 - time * 1/3), 4.0),
 			pow(simplex3d(fragmentPosition / 12.5 - 1000.0 + time * 0.25), 2.0)
 		);
-		surfaceColour = textureColour * baseTextureColour * (simplexColour * 0.6 + 0.4);
+		vec3 gridColour =
+			gridBaseColour
+		;
+		float gridEdgeBlend = (1.0 - max(
+			max(
+				calculateFogFactor2(
+					mod(textureCoords.s * gridIndicatorTextureCellCount, 1.0),
+					gridCellEdgeBlendFactor
+				),
+				calculateFogFactor2(
+					1.0 - mod(textureCoords.s * gridIndicatorTextureCellCount, 1.0),
+					gridCellEdgeBlendFactor
+				)
+			),
+			max(
+				calculateFogFactor2(
+					mod(textureCoords.t * gridIndicatorTextureCellCount, 1.0),
+					gridCellEdgeBlendFactor
+				),
+				calculateFogFactor2(
+					1.0 - mod(textureCoords.t * gridIndicatorTextureCellCount, 1.0),
+					gridCellEdgeBlendFactor
+				)
+			)
+		));
+		surfaceColour =
+			textureColour * baseTextureColour * (simplexColour * 0.6 + 0.4)
+			+ gridColour * (Texel(gridIndicatorTexture, textureCoords).rrr * 0.5 + 0.5)
+			* clamp(
+				gridEdgeBlend *
+					Texel(gridIndicatorTexture, textureCoords).bbb
+					* ((sin(time * 0.1) * 0.5 + 0.5) * 0.1 + 0.6),
+				0.0,
+				1.0
+			)
+		;
 	} else {
 		surfaceColour = fragmentNormal / 2.0 + 0.5;
 	}

@@ -20,7 +20,7 @@ local upVector = vec3(0, -1, 0)
 local tau = math.pi * 2
 
 local meshShader, backgroundShader
-local roadBaseTexture
+local roadBaseTexture, roadGridIndicatorTexture, roadGridIndicatorTextureSize
 local dummyTexture
 
 local camera, objects
@@ -113,6 +113,19 @@ function love.load()
 
 	roadBaseTexture = love.graphics.newImage("textures/roadBase.png")
 	roadBaseTexture:setWrap("repeat")
+	roadGridIndicatorTextureSize = 32
+	local roadGridIndicatorTextureData = love.image.newImageData(roadGridIndicatorTextureSize, roadGridIndicatorTextureSize)
+	roadGridIndicatorTextureData:mapPixel(function(x, y)
+		-- Seed RNG based on x and y for consistency...?
+		return -- Four different levels of frequency; one in each channel
+			love.math.random() < 1/5 and 1 or 0,
+			love.math.random() < 2/5 and 1 or 0,
+			love.math.random() < 3/5 and 1 or 0,
+			love.math.random() < 4/5 and 1 or 0
+	end)
+	roadGridIndicatorTexture = love.graphics.newImage(roadGridIndicatorTextureData)
+	roadGridIndicatorTexture:setFilter("nearest", "nearest")
+	roadGridIndicatorTexture:setWrap("repeat")
 	dummyTexture = love.graphics.newImage(love.image.newImageData(1, 1))
 
 	meshShader = love.graphics.newShader("shaders/mesh.glsl")
@@ -215,7 +228,11 @@ function love.draw()
 		meshShader:send("modelToScreen", {mat4.components(modelToScreenMatrix)})
 		meshShader:send("modelToWorldNormal", {normalMatrix(modelToWorldMatrix)})
 		meshShader:send("baseTexture", roadBaseTexture)
+		meshShader:send("gridIndicatorTexture", roadGridIndicatorTexture)
+		meshShader:send("gridIndicatorTextureCellCount", roadGridIndicatorTextureSize)
+		meshShader:send("gridCellEdgeBlendFactor", 0.1)
 		meshShader:send("drawTrippy", first)
+		meshShader:send("gridBaseColour", {hsv2rgb((time * -120) % 360, 1, 0.5)})
 		love.graphics.draw(object.mesh)
 		first = false
 	end
